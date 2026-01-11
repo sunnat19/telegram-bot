@@ -1,6 +1,8 @@
 # Функции расчёта нормы воды, калорий, запрос погоды
 import aiohttp
 import asyncio
+import matplotlib.pyplot as plt 
+import io
 from config import (
     OPENWEATHER_API_KEY, HOT_TEMP_THRESHOLD, HOT_WEATHER_EXTRA,
     ACTIVITY_WATER_PER_30MIN, ACTIVITY_CALORIES,
@@ -53,4 +55,53 @@ def calc_workout(activity_type: str, minutes: int) -> tuple[int, int]:
     per_min = WORKOUT_CALORIES_PER_MIN.get(activity_type.lower(), 5)
     calories = per_min * minutes
     water    = int((minutes / 30) * WORKOUT_WATER_PER_30MIN)
+
     return calories, water
+
+def create_progress_chart(stats: dict) -> io.BytesIO:
+   
+    # Подготовка данных для осей
+    dates_full = list(stats.keys())
+    dates_short = [d[5:] for d in dates_full]
+
+    water_data = [stats[d]['water'] for d in dates_full]
+    cal_in = [stats[d]['calories_in'] for d in dates_full]
+    cal_out = [stats[d]['calories_out'] for d in dates_full]
+
+    # Создаем фигуру с двумя подграфиками (subplots) рядом (1 строка, 2 колонки)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    fig.suptitle('Ваш прогресс за неделю', fontsize=16)
+
+    #  График Вода  
+    ax1.bar(dates_short, water_data, color='skyblue', alpha=0.8)
+    ax1.set_title('💧 Потребление воды')
+    ax1.set_ylabel('Миллилитры (мл)')
+    ax1.set_xlabel('День')
+    ax1.grid(axis='y', linestyle='--', alpha=0.5)
+
+    #  График Калории 
+    x_indexes = range(len(dates_short))
+    width = 0.4  # Ширина столбца
+
+    ax2.bar([x - width/2 for x in x_indexes], cal_in, width=width, label='Съедено', color='lightcoral', alpha=0.8)
+    ax2.bar([x + width/2 for x in x_indexes], cal_out, width=width, label='Сожжено', color='lightgreen', alpha=0.8)
+
+    ax2.set_title('🔥 Калории: Приход vs Расход')
+    ax2.set_ylabel('Ккалории (ккал)')
+    ax2.set_xlabel('День')
+    ax2.set_xticks(x_indexes) 
+    ax2.set_xticklabels(dates_short) 
+    ax2.legend()
+    ax2.grid(axis='y', linestyle='--', alpha=0.5)
+
+    # Автоматически выравниваем элементы, чтобы ничего не наезжало
+    plt.tight_layout()
+
+    # Сохраняем график в буфер памяти, а не в файл
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=100)
+    buf.seek(0) # Перематываем буфер в начало, чтобы его можно было прочитать
+
+    plt.close(fig)
+
+    return buf
