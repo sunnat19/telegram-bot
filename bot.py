@@ -3,7 +3,7 @@ import logging
 import re
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, BufferedInputFile
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -15,10 +15,12 @@ from utils import (
     calc_calorie_needs,
     fetch_food_info,
     calc_workout
+    create_progress_chart
 )
 from data_storage import (
     get_user_profile, set_user_profile,
-    log_water, log_food, log_workout, get_progress
+    log_water, log_food, log_workout, get_progress,
+    get_weekly_stats
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +41,7 @@ async def start_handler(message: Message):
         "/log_food <продукт> — лог еды\n"
         "/log_workout <тип> <мин> — лог тренировки\n"
         "/check_progress — прогресс"
+        "/graphs — графики за неделю 📈"
     )
 
 @dp.message(Command("profile"))
@@ -169,6 +172,44 @@ async def check_progress_handler(message: Message):
         f"🔥 Калории: съедено {prog['calories']['eaten']} ккал, сожжено {prog['calories']['burned']} ккал\n"
         f"⚖️ Баланс: {prog['calories']['eaten'] - prog['calories']['burned']} ккал"
     )
+    
+async def graphs_handler(message: Message):
+    uid = str(message.from_user.id)
+    prof = get_user_profile(uid)
+
+    # Проверка на наличие профиля, чтобы было что показывать
+    if not prof:
+         return await message.reply('Сначала заполните профиль и внесите данные!')
+
+    # Отправляем сообщение, что бот думает (генерация может занять секунду)
+    processing_msg = await message.answer("🎨 Рисую графики, подождите немного...")
+
+    try:
+        # 1. Получаем данные за неделю
+        stats = get_weekly_stats(uid)
+
+        # 2. Проверяем, есть ли вообще данные (если сумма всех показателей 0, то и рисовать нечего)
+        total_activity = sum(d['water'] + d['calories_in'] + d['calories_out'] for d in stats.values())
+        if total_activity == 0:
+             await processing_msg.edit_text("📉 За последнюю неделю нет данных для построения графиков.")
+             return
+
+        # 3. Генерируем картинку
+        # Важно: matplotlib блокирует поток. В идеале это нужно запускать в executor,
+        # но для учебного проекта прямой вызов допустим.
+        photo_buffer = create_progress_chart(stats)
+
+        # 4. Подготавливаем файл для отправки в Telegram
+        # Ему нужно дать имя (виртуальное), чтобы Телеграм понял формат
+        photo = BufferedInputFile(photo_buffer.read(), filename="weekly_progress.png")
+
+        # 5. Отправляем фото и удаляем сообщение "Рисую..."
+        await message.answer_photo(photo=photo, caption="📊 Ваша статистика за последние 7 дней.")
+        await processing_msg.delete()
+
+    except Exception as e:
+        logging.error(f"Error generating graphs: {e}")
+        await processing_msg.edit_text("❌ Произошла ошибка при создании графиков.")
 
 # Общий обработчик (в конце)
 @dp.message()
@@ -181,3 +222,4 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+
