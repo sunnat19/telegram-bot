@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date
+from datetime import date, timedelta
 
 DB_PATH = 'users.json'
 # Структура:
@@ -52,3 +52,41 @@ def get_progress(user_id: str, water_goal: int, cal_goal: int) -> dict:
     eaten  = sum(e['kcal']   for e in logs.get('food',  [])   if e['date']==today)
     burned = sum(e['kcal']   for e in logs.get('workout',[])  if e['date']==today)
     return { 'water': { 'drank': drank, 'goal': water_goal }, 'calories': { 'eaten': eaten, 'burned': burned, 'goal': cal_goal }}
+    
+def get_weekly_stats(user_id: str, days: int = 7) -> dict:
+    """
+    Агрегирует статистику за последние N дней.
+    Возвращает словарь вида:
+    { 'YYYY-MM-DD': {'water': 1500, 'calories_in': 2000, 'calories_out': 500}, ... }
+    """
+    data = load_data()
+    logs = data.get(user_id, {}).get('logs', {})
+
+    # 1. Инициализируем последние 7 дней нулями
+    today = date.today()
+    stats = {}
+    for i in range(days):
+        # Получаем дату на i дней назад в формате YYYY-MM-DD
+        day_str = (today - timedelta(days=i)).isoformat()
+        stats[day_str] = {'water': 0, 'calories_in': 0, 'calories_out': 0}
+
+    # 2. Суммируем Воду
+    for entry in logs.get('water', []):
+        day = entry['date']
+        if day in stats:
+            stats[day]['water'] += entry['amount']
+
+    # 3. Суммируем Приход калорий (Еда)
+    for entry in logs.get('food', []):
+        day = entry['date']
+        if day in stats:
+            stats[day]['calories_in'] += entry['kcal']
+
+    # 4. Суммируем Расход калорий (Тренировки)
+    for entry in logs.get('workout', []):
+        day = entry['date']
+        if day in stats:
+            stats[day]['calories_out'] += entry['kcal']
+
+    # Сортируем по дате (от старых к новым), чтобы график был правильным
+    return dict(sorted(stats.items()))
