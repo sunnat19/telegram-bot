@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import os
 import re
+from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, BufferedInputFile
@@ -215,12 +217,35 @@ async def graphs_handler(message: Message):
 @dp.message()
 async def default_handler(message: Message):
     await message.answer("🤔 Неизвестная команда. Используйте /start для списка команд.")
+    
+async def handle(request):
+    return web.Response(text="Bot is running!")
 
 async def main():
+    # 2. Настройка веб-сервера «пустышки»
+    app = web.Application()
+    app.router.add_get("/", handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    # Берем порт, который дает Render, или 10000 по умолчанию
+    port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    
+    # Запускаем сервер
+    await site.start()
+    logging.info(f"--- Web server started on port {port} ---")
+
+    # 3. Запуск бота
+    logging.info("--- Starting bot polling ---")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Bot stopped")
+
 
 
