@@ -14,7 +14,7 @@ from utils import (
     calc_water_intake,
     calc_calorie_needs,
     fetch_food_info,
-    calc_workout
+    calc_workout,
     create_progress_chart
 )
 from data_storage import (
@@ -40,7 +40,7 @@ async def start_handler(message: Message):
         "/log_water <мл> — лог воды\n"
         "/log_food <продукт> — лог еды\n"
         "/log_workout <тип> <мин> — лог тренировки\n"
-        "/check_progress — прогресс"
+        "/check_progress — прогресс\n"
         "/graphs — графики за неделю 📈"
     )
 
@@ -222,4 +222,5 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+
 
