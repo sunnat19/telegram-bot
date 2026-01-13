@@ -174,7 +174,7 @@ async def check_progress_handler(message: Message):
         f"🔥 Калории: съедено {prog['calories']['eaten']} ккал, сожжено {prog['calories']['burned']} ккал\n"
         f"⚖️ Баланс: {prog['calories']['eaten'] - prog['calories']['burned']} ккал"
     )
-    
+@dp.message(Command("graphs"))    
 async def graphs_handler(message: Message):
     uid = str(message.from_user.id)
     prof = get_user_profile(uid)
@@ -246,6 +246,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped")
+
 
 
 
