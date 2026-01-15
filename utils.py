@@ -81,7 +81,7 @@ def get_smart_recommendation(eaten: float, burned: float, goal: float) -> str:
 
 
 def create_progress_chart(stats: dict) -> io.BytesIO:
-   """Создает прогресса за неделю."""
+    """Создает прогресса за неделю."""
     dates_full = list(stats.keys())
     dates_short = [d[5:] for d in dates_full]
 
@@ -120,6 +120,7 @@ def create_progress_chart(stats: dict) -> io.BytesIO:
     plt.close(fig)
 
     return buf
+
 
 
 
