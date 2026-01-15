@@ -34,22 +34,24 @@ def calc_calorie_needs(weight: float, height: float, age: int,
     activity = ACTIVITY_CALORIES.get(activity_level, 0)
     return int(bmr + activity)
 
-async def fetch_food_info(product: str) -> tuple[str, float]:
-    url = (
-        'https://world.openfoodfacts.org/cgi/search.pl'
-        f'?search_terms={product}&search_simple=1&action=process&json=1'
-    )
+async def fetch_food_info(product: str) -> dict:
+    url = f"https://world.openfoodfacts.org/cgi/search.pl?search_terms={product}&search_simple=1&action=process&json=1"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             data = await resp.json()
             items = data.get('products', [])
             if not items:
-                return product, 0.0
+                return None
+            
             first = items[0]
-            name  = first.get('product_name_ru') or first.get('product_name') or product
-            nutr  = first.get('nutriments', {})
-            kcal  = nutr.get('energy-kcal_100g', 0.0)
-            return name, float(kcal)
+            nutr = first.get('nutriments', {})
+            return {
+                'name': first.get('product_name_ru') or first.get('product_name') or product,
+                'kcal': float(nutr.get('energy-kcal_100g', 0)),
+                'proteins': float(nutr.get('proteins_100g', 0)),
+                'fats': float(nutr.get('fat_100g', 0)),
+                'carbs': float(nutr.get('carbohydrates_100g', 0))
+            }
 
 def calc_workout(activity_type: str, minutes: int) -> tuple[int, int]:
     per_min = WORKOUT_CALORIES_PER_MIN.get(activity_type.lower(), 5)
@@ -57,6 +59,17 @@ def calc_workout(activity_type: str, minutes: int) -> tuple[int, int]:
     water    = int((minutes / 30) * WORKOUT_WATER_PER_30MIN)
 
     return calories, water
+
+def get_recommendations(current_calories: float, goal_calories: float):
+    diff = goal_calories - current_calories
+    
+    if diff > 500:
+        return "🥗 Вам стоит перекусить! Рекомендуем: греческий салат или творог."
+    elif 0 < diff <= 500:
+        return "🍏 Вы почти у цели. Рекомендуем что-то легкое: яблоко или горсть орехов."
+    else:
+        return "🏃‍♂️ Ого, лимит калорий превышен! Рекомендуем интенсивную тренировку: бег (30 мин) или плавание."
+
 
 def create_progress_chart(stats: dict) -> io.BytesIO:
    
@@ -105,3 +118,4 @@ def create_progress_chart(stats: dict) -> io.BytesIO:
     plt.close(fig)
 
     return buf
+
