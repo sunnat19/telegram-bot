@@ -17,7 +17,8 @@ from utils import (
     calc_calorie_needs,
     fetch_food_info,
     calc_workout,
-    create_progress_chart
+    create_progress_chart,
+    get_smart_recommendation
 )
 from data_storage import (
     get_user_profile, set_user_profile,
@@ -127,28 +128,48 @@ async def log_water_handler(message: Message):
 async def log_food_handler(message: Message, state: FSMContext):
     args = message.text.split(maxsplit=1)
     if len(args) != 2:
-        await message.answer("⚠️ Использование: /log_food <продукт>")
-        return
+        return await message.answer("⚠️ Использование: /log_food <продукт>")
+    
     product = args[1]
-    name, kcal100 = await fetch_food_info(product)
-    if kcal100 == 0:
-        await message.answer("❌ Продукт не найден")
-        return
-    await state.update_data(name=name, kcal100=kcal100)
-    await message.answer(f"🍎 {name} — {kcal100} ккал/100г. Сколько грамм?")
+    food_data = await fetch_food_info(product) # Теперь получаем словарь
+    
+    if not food_data or food_data['kcal'] == 0:
+        return await message.answer("❌ Продукт не найден в базе данных.")
+    
+    await state.update_data(food_data=food_data)
+    await message.answer(
+        f"🍎 **{food_data['name']}**\n"
+        f"Калорийность: {food_data['kcal']} ккал/100г\n"
+        f"БЖУ: {food_data['proteins']}/{food_data['fats']}/{food_data['carbs']}\n\n"
+        f"Сколько грамм вы съели?"
+    )
     await state.set_state(FoodForm.waiting_for_grams)
+
 
 @dp.message(FoodForm.waiting_for_grams)
 async def food_grams(message: Message, state: FSMContext):
     data = await state.get_data()
     try:
         grams = float(message.text)
-        kcal = grams * data['kcal100'] / 100
-        log_food(str(message.from_user.id), data['name'], kcal)
-        await message.answer(f"✅ Записано: {kcal:.1f} ккал из {grams:.0f} г {data['name']}")
+        food = data['food_data']
+        
+        # Расчет с учетом веса
+        ratio = grams / 100
+        res_kcal = food['kcal'] * ratio
+        res_p = food['proteins'] * ratio
+        res_f = food['fats'] * ratio
+        res_c = food['carbs'] * ratio
+        
+        log_food(str(message.from_user.id), food['name'], res_kcal)
+        
+        await message.answer(
+            f"✅ Записано: {res_kcal:.1f} ккал\n"
+            f"📊 Итого БЖУ за прием: Б: {res_p:.1f}г, Ж: {res_f:.1f}г, У: {res_c:.1f}г"
+        )
     except ValueError:
         await message.answer("Введите число в граммах!")
     await state.clear()
+
 
 @dp.message(Command("log_workout"))
 async def log_workout_handler(message: Message):
@@ -160,6 +181,7 @@ async def log_workout_handler(message: Message):
     kcal, water = calc_workout(typ, mins)
     log_workout(str(message.from_user.id), typ, mins, kcal, water)
     await message.answer(f"🏃 {typ} — {mins} мин — {kcal} ккал. Доп. вода: {water} мл")
+
 
 @dp.message(Command("check_progress"))
 async def check_progress_handler(message: Message):
@@ -174,6 +196,8 @@ async def check_progress_handler(message: Message):
         f"🔥 Калории: съедено {prog['calories']['eaten']} ккал, сожжено {prog['calories']['burned']} ккал\n"
         f"⚖️ Баланс: {prog['calories']['eaten'] - prog['calories']['burned']} ккал"
     )
+
+
 @dp.message(Command("graphs"))    
 async def graphs_handler(message: Message):
     uid = str(message.from_user.id)
@@ -213,6 +237,25 @@ async def graphs_handler(message: Message):
         logging.error(f"Error generating graphs: {e}")
         await processing_msg.edit_text("❌ Произошла ошибка при создании графиков.")
 
+
+@dp.message(Command("recommend"))
+async def recommend_handler(message: Message):
+    uid = str(message.from_user.id)
+    prof = get_user_profile(uid)
+    if not prof:
+        return await message.answer("Сначала настройте /profile")
+    
+    cal_goal = calc_calorie_needs(prof['weight'], prof['height'], prof['age'], prof['sex'], 'medium')
+    prog = get_progress(uid, 0, cal_goal)
+    
+    advice = get_smart_recommendation(
+        prog['calories']['eaten'], 
+        prog['calories']['burned'], 
+        cal_goal
+    )
+    await message.answer(f"💡 **Персональный совет:**\n\n{advice}")
+
+
 # Общий обработчик (в конце)
 @dp.message()
 async def default_handler(message: Message):
@@ -246,6 +289,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped")
+
 
 
 
