@@ -54,7 +54,7 @@ async def profile_request(message: Message):
         "Пример: male;30;75;180"
     )
 
-# Установка профиля по любому сообщению с 3 ';'
+# Установка профиля по любому сообщению
 @dp.message(F.text.regexp(r'^[^;]+;\s*\d+;\s*\d+;\s*\d+$'))
 async def set_profile(message: Message):
     sex, age, weight, height = [x.strip() for x in message.text.split(";")]
@@ -76,7 +76,6 @@ async def water_request(message: Message):
         "Пример: Tashkent;45"
     )
 
-# Обработка ввода города и минут для воды
 @dp.message(lambda m: m.text and ";" in m.text and not m.text.startswith("/"))
 async def water_calc_handler(message: Message):
     try:
@@ -203,39 +202,18 @@ async def graphs_handler(message: Message):
     uid = str(message.from_user.id)
     prof = get_user_profile(uid)
 
-    # Проверка на наличие профиля, чтобы было что показывать
-    if not prof:
-         return await message.reply('Сначала заполните профиль и внесите данные!')
+    processing_msg = await message.answer("Рисую графики, подождите немного...")
 
-    # Отправляем сообщение, что бот думает (генерация может занять секунду)
-    processing_msg = await message.answer("🎨 Рисую графики, подождите немного...")
+    stats = get_weekly_stats(uid)
+    total_activity = sum(d['water'] + d['calories_in'] + d['calories_out'] for d in stats.values())
+    if total_activity == 0:
+        await processing_msg.edit_text("📉 За последнюю неделю нет данных для построения графиков.")
+        return
+    photo_buffer = create_progress_chart(stats)
+    photo = BufferedInputFile(photo_buffer.read(), filename="weekly_progress.png")
 
-    try:
-        # 1. Получаем данные за неделю
-        stats = get_weekly_stats(uid)
-
-        # 2. Проверяем, есть ли вообще данные (если сумма всех показателей 0, то и рисовать нечего)
-        total_activity = sum(d['water'] + d['calories_in'] + d['calories_out'] for d in stats.values())
-        if total_activity == 0:
-             await processing_msg.edit_text("📉 За последнюю неделю нет данных для построения графиков.")
-             return
-
-        # 3. Генерируем картинку
-        # Важно: matplotlib блокирует поток. В идеале это нужно запускать в executor,
-        # но для учебного проекта прямой вызов допустим.
-        photo_buffer = create_progress_chart(stats)
-
-        # 4. Подготавливаем файл для отправки в Telegram
-        # Ему нужно дать имя (виртуальное), чтобы Телеграм понял формат
-        photo = BufferedInputFile(photo_buffer.read(), filename="weekly_progress.png")
-
-        # 5. Отправляем фото и удаляем сообщение "Рисую..."
-        await message.answer_photo(photo=photo, caption="📊 Ваша статистика за последние 7 дней.")
-        await processing_msg.delete()
-
-    except Exception as e:
-        logging.error(f"Error generating graphs: {e}")
-        await processing_msg.edit_text("❌ Произошла ошибка при создании графиков.")
+    await message.answer_photo(photo=photo, caption="📊 Ваша статистика за последние 7 дней.")
+    await processing_msg.delete()
 
 
 @dp.message(Command("recommend"))
@@ -256,7 +234,7 @@ async def recommend_handler(message: Message):
     await message.answer(f"💡 **Персональный совет:**\n\n{advice}")
 
 
-# Общий обработчик (в конце)
+# Общий обработчик 
 @dp.message()
 async def default_handler(message: Message):
     await message.answer("🤔 Неизвестная команда. Используйте /start для списка команд.")
@@ -265,21 +243,19 @@ async def handle(request):
     return web.Response(text="Bot is running!")
 
 async def main():
-    # 2. Настройка веб-сервера «пустышки»
+    # Настройка веб-сервера «
     app = web.Application()
     app.router.add_get("/", handle)
     runner = web.AppRunner(app)
     await runner.setup()
     
-    # Берем порт, который дает Render, или 10000 по умолчанию
     port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, '0.0.0.0', port)
     
-    # Запускаем сервер
     await site.start()
     logging.info(f"--- Web server started on port {port} ---")
 
-    # 3. Запуск бота
+    # Запуск бота
     logging.info("--- Starting bot polling ---")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
@@ -289,6 +265,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped")
+
 
 
 
