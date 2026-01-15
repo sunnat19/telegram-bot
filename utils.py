@@ -11,7 +11,7 @@ from config import (
 
 # Внешние API (Погода и Еда)
 async def fetch_current_temp(city: str) -> float:
-"""Запрашивает текущую температуру в городе через OpenWeatherMap API."""
+    """Запрашивает текущую температуру в городе через OpenWeatherMap API."""
     url = (
         'http://api.openweathermap.org/data/2.5/weather'
         f'?q={city}&appid={OPENWEATHER_API_KEY}&units=metric'
@@ -30,7 +30,7 @@ def calc_water_intake(weight: float, activity_min: int, temp: float) -> int:
 
 def calc_calorie_needs(weight: float, height: float, age: int,
                        sex: str, activity_level: str) -> int:
-"""Рассчитывает норму калорий по формуле Миффлина-Сан Жеора."""
+    """Рассчитывает норму калорий по формуле Миффлина-Сан Жеора."""
     if sex.lower() == 'male':
         bmr = 10*weight + 6.25*height - 5*age + 5
     else:
@@ -39,10 +39,7 @@ def calc_calorie_needs(weight: float, height: float, age: int,
     return int(bmr + activity)
 
 async def fetch_food_info(product: str) -> dict:
-    """
-    Продвинутый поиск продукта в базе OpenFoodFacts.
-    Возвращает словарь с названием и КБЖУ на 100г.
-    """
+    """ Продвинутый поиск продукта в базе OpenFoodFacts."""
     url = f"https://world.openfoodfacts.org/cgi/search.pl?search_terms={product}&search_simple=1&action=process&json=1"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -84,9 +81,7 @@ def get_smart_recommendation(eaten: float, burned: float, goal: float) -> str:
 
 
 def create_progress_chart(stats: dict) -> io.BytesIO:
-   """
-    Создает прогресса за неделю.
-    """
+   """Создает прогресса за неделю."""
     dates_full = list(stats.keys())
     dates_short = [d[5:] for d in dates_full]
 
@@ -125,6 +120,7 @@ def create_progress_chart(stats: dict) -> io.BytesIO:
     plt.close(fig)
 
     return buf
+
 
 
 
