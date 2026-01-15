@@ -60,15 +60,17 @@ def calc_workout(activity_type: str, minutes: int) -> tuple[int, int]:
 
     return calories, water
 
-def get_recommendations(current_calories: float, goal_calories: float):
-    diff = goal_calories - current_calories
-    
-    if diff > 500:
-        return "🥗 Вам стоит перекусить! Рекомендуем: греческий салат или творог."
-    elif 0 < diff <= 500:
-        return "🍏 Вы почти у цели. Рекомендуем что-то легкое: яблоко или горсть орехов."
+def get_smart_recommendation(eaten: float, burned: float, goal: float) -> str:
+    """Логика персональных рекомендаций"""
+    balance = eaten - burned
+    remaining = goal - balance
+
+    if remaining > 500:
+        return "🥗 Вы потребили мало калорий. Рекомендуем добавить белок (курица, рыба) и овощи."
+    elif 0 < remaining <= 500:
+        return "🍏 Отличный темп! Для легкого перекуса подойдет фрукт или горсть орехов."
     else:
-        return "🏃‍♂️ Ого, лимит калорий превышен! Рекомендуем интенсивную тренировку: бег (30 мин) или плавание."
+        return "🏃 Лимит превышен. Рекомендуем добавить 30 минут активности сегодня!"
 
 
 def create_progress_chart(stats: dict) -> io.BytesIO:
@@ -118,4 +120,5 @@ def create_progress_chart(stats: dict) -> io.BytesIO:
     plt.close(fig)
 
     return buf
+
 
