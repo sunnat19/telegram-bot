@@ -10,6 +10,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+# Импорт настроек и вспомогательных функций
 from config import API_TOKEN, HOT_TEMP_THRESHOLD
 from utils import (
     fetch_current_temp,
@@ -25,18 +26,19 @@ from data_storage import (
     log_water, log_food, log_workout, get_progress,
     get_weekly_stats
 )
-
+# Инициализация бота и логирования
 logging.basicConfig(level=logging.INFO)
 bot = Bot(API_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 class FoodForm(StatesGroup):
     waiting_for_grams = State()
-
+    
+# Настройка профиля
 @dp.message(CommandStart())
 async def start_handler(message: Message):
     await message.answer(
-        "👋 Бот готов! Используйте команды:\n"
+        "Используйте команды:\n"
         "/profile — установить профиль\n"
         "/water — расчёт воды\n"
         "/calories — расчёт калорий\n"
@@ -65,7 +67,8 @@ async def set_profile(message: Message):
         'height': float(height)
     })
     await message.answer("✅ Профиль сохранён!")
-
+    
+# Расчеты норм
 @dp.message(Command("water"))
 async def water_request(message: Message):
     prof = get_user_profile(str(message.from_user.id))
@@ -108,6 +111,7 @@ async def calories_calc_handler(message: Message):
     )
     await message.answer(f"🔥 Ваша норма калорий: {cals} ккал")
 
+ # Логирования (вода, еда и тринировки)   
 @dp.message(Command("log_water"))
 async def log_water_handler(message: Message):
     args = message.text.split(maxsplit=1)
@@ -181,7 +185,7 @@ async def log_workout_handler(message: Message):
     log_workout(str(message.from_user.id), typ, mins, kcal, water)
     await message.answer(f"🏃 {typ} — {mins} мин — {kcal} ккал. Доп. вода: {water} мл")
 
-
+# Аналитика и рекомендации  
 @dp.message(Command("check_progress"))
 async def check_progress_handler(message: Message):
     uid = str(message.from_user.id)
@@ -239,6 +243,7 @@ async def recommend_handler(message: Message):
 async def default_handler(message: Message):
     await message.answer("🤔 Неизвестная команда. Используйте /start для списка команд.")
     
+# Запуск сервера и бота   
 async def handle(request):
     return web.Response(text="Bot is running!")
 
@@ -255,7 +260,7 @@ async def main():
     await site.start()
     logging.info(f"--- Web server started on port {port} ---")
 
-    # Запуск бота
+    # Запуск polling
     logging.info("--- Starting bot polling ---")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
@@ -265,6 +270,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped")
+
 
 
 
