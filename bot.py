@@ -47,6 +47,7 @@ async def start_handler(message: Message):
         "/log_workout <тип> <мин> — лог тренировки\n"
         "/check_progress — прогресс\n"
         "/graphs — графики за неделю 📈"
+        "/recommend — персональный совет"
     )
 
 @dp.message(Command("profile"))
@@ -270,6 +271,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped")
+
 
 
 
