@@ -46,7 +46,7 @@ async def start_handler(message: Message):
         "/log_food <продукт> — лог еды\n"
         "/log_workout <тип> <мин> — лог тренировки\n"
         "/check_progress — прогресс\n"
-        "/graphs — графики за неделю 📈"
+        "/graphs — графики за неделю 📈\n"
         "/recommend — персональный совет"
     )
 
@@ -271,6 +271,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped")
+
 
 
 
